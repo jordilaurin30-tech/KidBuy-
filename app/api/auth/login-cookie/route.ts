@@ -4,7 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
-
+  
   const email = typeof body?.email === "string" ? body.email.trim() : "";
   const password = typeof body?.password === "string" ? body.password : "";
 
@@ -21,19 +21,16 @@ export async function POST(req: Request) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            // ✅ Cookies auf die Response schreiben (das ist der Fix)
-            res.cookies.set(name, value, options);
-          });
-        },
-      },
-    }
-  );
+     cookies: {
+  getAll() {
+    return [];
+  },
+  setAll(cookiesToSet) {
+    cookiesToSet.forEach(({ name, value, options }) => {
+      res.cookies.set(name, value, options);
+    });
+  }
+}
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
