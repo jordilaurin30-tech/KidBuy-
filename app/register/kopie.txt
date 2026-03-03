@@ -1,0 +1,446 @@
+"use client";
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { EmojiCompanion } from "../../components/login/EmojiCompanion";
+
+// i18n (du hast das schon)
+import { EU_LANGS, getLang, setLang, t, type Lang, emojiSubtitles } from "../lib/i18n";
+
+type AccountRole = "parent" | "kid";
+
+function clamp(n: number, min: number, max: number) {
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, Math.min(max, n));
+}
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  const next = sp.get("next") || "/login";
+
+  // Language (persisted)
+  const [lang, setLangState] = useState<Lang>("de");
+  useEffect(() => setLangState(getLang()), []);
+  const emojiTextByMood = useMemo(() => emojiSubtitles(lang), [lang]);
+
+  // UI state
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [okMsg, setOkMsg] = useState("");
+
+  // form
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<AccountRole>("parent");
+
+  // Emoji mood (gleich wie Login)
+  const [emojiMood, setEmojiMood] = useState<
+    "idle" | "nameTyping" | "emailTyping" | "passwordTyping" | "angry" | "clap"
+  >("idle");
+  const [shake, setShake] = useState(false);
+  const [clap, setClap] = useState(false);
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [look, setLook] = useState({ x: 0, y: 0 });
+
+  // Palette (wie Login)
+  const palette = {
+    text: "rgba(0,0,0,0.90)",
+    yellow: "rgba(255, 205, 55, 0.22)",
+    blue: "rgba(60, 120, 255, 0.18)",
+    green: "rgba(35, 200, 140, 0.18)",
+    red: "rgba(255, 90, 90, 0.16)",
+    border: "rgba(0,0,0,0.08)",
+    borderStrong: "rgba(0,0,0,0.12)",
+    glass: "rgba(255,255,255,0.84)",
+    shadow: "0 20px 70px rgba(0,0,0,0.12)",
+  };
+
+  // Mouse-follow head (smooth)
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      const el = containerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+
+      const cx = r.left + r.width * 0.25;
+      const cy = r.top + r.height * 0.42;
+
+      const dx = (e.clientX - cx) / 260;
+      const dy = (e.clientY - cy) / 260;
+
+      setLook({ x: clamp(dx, -1, 1), y: clamp(dy, -1, 1) });
+    }
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+
+  function triggerAngry(msg?: string) {
+    if (msg) setError(msg);
+    setEmojiMood("angry");
+    setShake(true);
+    window.setTimeout(() => setShake(false), 420);
+    window.setTimeout(() => setEmojiMood("idle"), 900);
+  }
+
+  function triggerClapYes(msg?: string) {
+    if (msg) setOkMsg(msg);
+    setEmojiMood("clap");
+    setClap(true);
+    window.setTimeout(() => setClap(false), 900);
+    window.setTimeout(() => setEmojiMood("idle"), 1100);
+  }
+
+  // Focus reactions
+  function onNameFocus() {
+    setEmojiMood("nameTyping");
+  }
+  function onEmailFocus() {
+    setEmojiMood("emailTyping");
+  }
+  function onPasswordFocus() {
+    setEmojiMood("passwordTyping");
+  }
+  function onAnyBlur() {
+    window.setTimeout(() => {
+      if (!loading && !error) setEmojiMood("idle");
+    }, 120);
+  }
+
+  async function onRegister() {
+    setError("");
+    setOkMsg("");
+
+    const nameTrim = fullName.trim();
+    const emailTrim = email.trim().toLowerCase();
+    const pass = password;
+
+    if (!nameTrim) return triggerAngry("Bitte Name eingeben.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) return triggerAngry(`Email address "${emailTrim}" is invalid`);
+    if (!pass || pass.length < 6) return triggerAngry("Passwort muss mindestens 6 Zeichen haben.");
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: nameTrim,
+          email: emailTrim,
+          password: pass,
+          role,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setLoading(false);
+        // Wichtige typische Fälle sofort verständlich machen:
+        const msg = data?.message || "Registrierung fehlgeschlagen.";
+        // supabase "already registered" o.ä.
+        if (String(msg).toLowerCase().includes("already") || String(msg).toLowerCase().includes("exists")) {
+          return triggerAngry("Diese E-Mail ist schon registriert. Bitte einloggen oder im Supabase Dashboard den User löschen.");
+        }
+        return triggerAngry(msg);
+      }
+
+      setLoading(false);
+      triggerClapYes("✅ Registriert! Du kannst dich jetzt anmelden.");
+      // nach kurzer Zeit auf login (du kannst das ändern)
+      window.setTimeout(() => {
+        router.push(next);
+        router.refresh();
+      }, 450);
+    } catch (e: any) {
+      setLoading(false);
+      triggerAngry(e?.message || "Netzwerkfehler.");
+    }
+  }
+
+  return (
+    <main
+      ref={containerRef}
+      style={{
+        minHeight: "100vh",
+        color: palette.text,
+        position: "relative",
+        overflow: "hidden",
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+      }}
+    >
+      {/* Background glow */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: -40,
+          zIndex: 0,
+          background: `
+            radial-gradient(900px 540px at 18% 18%, ${palette.yellow}, transparent 62%),
+            radial-gradient(900px 540px at 84% 18%, ${palette.blue}, transparent 62%),
+            radial-gradient(900px 540px at 18% 86%, ${palette.green}, transparent 62%),
+            radial-gradient(900px 540px at 86% 86%, ${palette.red}, transparent 62%)
+          `,
+          filter: "blur(6px)",
+        }}
+      />
+
+      <div className="kb-shell" style={{ position: "relative", zIndex: 1, minHeight: "100vh" }}>
+        {/* Left: Emoji */}
+        <section className="kb-left">
+          <EmojiCompanion
+            look={look}
+            mood={emojiMood}
+            shake={shake}
+            clap={clap}
+            palette={palette}
+            subtitleByMood={emojiTextByMood}
+          />
+        </section>
+
+        {/* Right: Register Card */}
+        <section className="kb-right">
+          <div
+            style={{
+              width: "min(720px, 96vw)",
+              background: palette.glass,
+              border: `1px solid ${palette.border}`,
+              borderRadius: 26,
+              boxShadow: palette.shadow,
+              overflow: "hidden",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: 18,
+                borderBottom: `1px solid ${palette.border}`,
+                background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.78) 100%)",
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: 14,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 950, letterSpacing: "-0.02em" }}>Registrieren</div>
+                <div style={{ marginTop: 6, fontSize: 13, color: "rgba(0,0,0,0.62)", lineHeight: 1.35 }}>
+                  Erstelle dein Konto (Eltern oder Kind).
+                </div>
+              </div>
+
+              <select
+                value={lang}
+                onChange={(e) => {
+                  const v = e.target.value as Lang;
+                  setLang(v);
+                  setLangState(v);
+                }}
+                style={{
+                  borderRadius: 999,
+                  border: `1px solid ${palette.borderStrong}`,
+                  background: "rgba(255,255,255,0.72)",
+                  padding: "8px 10px",
+                  fontSize: 12,
+                  fontWeight: 950,
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+                title="Sprache"
+              >
+                {EU_LANGS.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Content */}
+            <div
+              style={{
+                padding: 18,
+                display: "grid",
+                gap: 14,
+                maxHeight: "calc(100vh - 140px)",
+                overflow: "auto",
+              }}
+            >
+              <Field label={t(lang, "login.name")}>
+                <input
+                  value={fullName}
+                  onChange={(e) => {
+                    setFullName(e.target.value);
+                    setEmojiMood("nameTyping");
+                  }}
+                  onFocus={onNameFocus}
+                  onBlur={onAnyBlur}
+                  placeholder={t(lang, "login.placeholderName")}
+                  style={inputStyle(palette)}
+                />
+              </Field>
+
+              <Field label={t(lang, "login.email")}>
+                <input
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmojiMood("emailTyping");
+                  }}
+                  onFocus={onEmailFocus}
+                  onBlur={onAnyBlur}
+                  placeholder={t(lang, "login.placeholderEmail")}
+                  style={inputStyle(palette)}
+                />
+              </Field>
+
+              <Field label={t(lang, "login.password")}>
+                <input
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setEmojiMood("passwordTyping");
+                  }}
+                  placeholder="••••••"
+                  type="password"
+                  onFocus={onPasswordFocus}
+                  onBlur={onAnyBlur}
+                  style={inputStyle(palette)}
+                />
+              </Field>
+
+              <Field label="Konto-Typ">
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as AccountRole)}
+                  style={inputStyle(palette)}
+                >
+                  <option value="parent">Eltern</option>
+                  <option value="kid">Kind</option>
+                </select>
+              </Field>
+
+              {error && (
+                <div
+                  style={{
+                    borderRadius: 18,
+                    border: "1px solid rgba(255, 90, 90, 0.28)",
+                    background: "rgba(255, 90, 90, 0.14)",
+                    padding: "10px 12px",
+                    fontSize: 12,
+                    fontWeight: 950,
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+
+              {okMsg && (
+                <div
+                  style={{
+                    borderRadius: 18,
+                    border: "1px solid rgba(35,200,140,0.28)",
+                    background: "rgba(35,200,140,0.14)",
+                    padding: "10px 12px",
+                    fontSize: 12,
+                    fontWeight: 950,
+                  }}
+                >
+                  {okMsg}
+                </div>
+              )}
+
+              <button
+                onClick={onRegister}
+                disabled={loading}
+                style={{
+                  height: 48,
+                  borderRadius: 14,
+                  border: "1px solid rgba(15,23,42,0.12)",
+                  background: loading ? "rgba(2,6,23,0.08)" : "linear-gradient(180deg, #FFE275, #FFB200)",
+                  fontWeight: 950,
+                  cursor: loading ? "not-allowed" : "pointer",
+                }}
+              >
+                {loading ? "Bitte warten…" : "Registrieren"}
+              </button>
+
+              <Link href="/login" style={{ fontWeight: 950, fontSize: 13 }}>
+                Schon registriert? → Anmelden
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <style jsx>{`
+        .kb-shell {
+          display: grid;
+          grid-template-columns: 1fr;
+          min-height: 100vh;
+        }
+
+        .kb-left {
+          display: none;
+          padding: 28px 24px;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .kb-right {
+          padding: 24px 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+          overflow: auto;
+        }
+
+        @media (min-width: 980px) {
+          .kb-shell {
+            grid-template-columns: 1fr 1fr;
+          }
+          .kb-left {
+            display: flex;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+          }
+          .kb-right {
+            justify-content: flex-start;
+            padding: 28px 28px;
+          }
+        }
+      `}</style>
+    </main>
+  );
+}
+
+function inputStyle(palette: any): React.CSSProperties {
+  return {
+    padding: "12px 12px",
+    borderRadius: 18,
+    border: `1px solid ${palette.borderStrong}`,
+    background: "rgba(255,255,255,0.86)",
+    boxShadow: "0 10px 28px rgba(0,0,0,0.06)",
+    outline: "none",
+    fontSize: 14,
+    fontWeight: 750,
+    color: palette.text,
+    width: "100%",
+  };
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "grid", gap: 8 }}>
+      <span style={{ fontSize: 12, fontWeight: 950 }}>{label}</span>
+      {children}
+    </label>
+  );
+}
