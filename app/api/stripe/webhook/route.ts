@@ -90,7 +90,7 @@ export async function POST(req: Request) {
             status: "paid",
             stripe_payment_intent_id: String(session.payment_intent || ""),
             customer_email: session.customer_details?.email || null,
-            shipping_address: session.shipping_details?.address || null,
+            shipping_address: session.customer_details?.address || null,
             billing_address: session.customer_details?.address || null,
           })
           .eq("id", orderId);
