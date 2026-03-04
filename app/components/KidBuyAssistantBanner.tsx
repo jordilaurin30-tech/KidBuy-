@@ -21,8 +21,8 @@ export default function KidBuyAssistantOverlay({ allowCartMessages = true }: Pro
   };
 
   useEffect(() => {
-    return onAssistantMessage((p) => {
-      if (p.kind !== "center") return;
+    return onAssistantMessage((p: any) => {
+  if (p.kind === "center") return;
       if (!allowCartMessages && p.emoji) return; // optional, falls du mal nur Start willst
       show(p);
     });
