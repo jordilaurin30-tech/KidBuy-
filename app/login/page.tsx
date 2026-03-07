@@ -319,7 +319,7 @@ if (signIn2.error || !signIn2.data?.user) {
 
       setLoading(false);
       triggerClapYes();
-      router.push(next);
+      router.push(nextPath);
       router.refresh();
     } catch {
       setLoading(false);
