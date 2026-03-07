@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { EmojiCompanion } from "../../components/login/EmojiCompanion"; // ✅ (A entfernt)
 
 // ✅ i18n (EU-Sprachen) – nur ergänzt
@@ -37,9 +37,14 @@ function isValidDobUI(day: string, month: string, year: string) {
 
 export default function LoginPage() {
   const router = useRouter();
-  const sp = useSearchParams();
-  const next = sp.get("next") || "/parent";
-  const needParent = sp.get("needParent") === "1";
+    const [nextPath, setNextPath] = useState("/parent");
+  const [needParent, setNeedParent] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setNextPath(params.get("next") || "/parent");
+    setNeedParent(params.get("needParent") === "1");
+  }, []);
 
   // ✅ Language (persisted) – nur ergänzt
   const [lang, setLangState] = useState<Lang>("de");
@@ -262,7 +267,7 @@ if (signIn2.error || !signIn2.data?.user) {
     if (!ok) return;
 
     triggerClapYes();
-    router.push(next === "/parent" ? "/" : next);
+    router.push(nextPath === "/parent" ? "/" : nextPath);
     router.refresh();
   }
 
