@@ -65,7 +65,7 @@ export const CATEGORY_THEMES = {
   },
 };
 
-export const CATEGORIES: CategoryTheme[] = [
+export const CATEGORIES = [
   CATEGORY_THEMES.mode,
   CATEGORY_THEMES.elektronik,
   CATEGORY_THEMES.Gadgets,
