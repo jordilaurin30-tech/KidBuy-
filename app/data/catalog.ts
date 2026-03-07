@@ -27,7 +27,7 @@ export type Product = {
   imageUrl: string; // supabase/public url
 };
 
-export const CATEGORY_THEMES: Record<CategoryKey, CategoryTheme> = {
+export const CATEGORY_THEMES = {
   elektronik: {
     key: "elektronik",
     label: "Elektronik",
