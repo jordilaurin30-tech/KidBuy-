@@ -742,7 +742,7 @@ function Page1({
                   if (searchTimerRef.current) window.clearTimeout(searchTimerRef.current);
                   searchTimerRef.current = window.setTimeout(() => {
                     const m = getSearchMessage(val);
-                    if (m) emitAssistantMessage(m);
+                    if (m) emitAssistantMessage({ ...m, emoji: m.emoji ?? "" });
                   }, 400) as unknown as number;
                 }}
                 placeholder="Produkte suchen..."
