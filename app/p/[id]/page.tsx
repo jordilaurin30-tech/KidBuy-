@@ -83,7 +83,7 @@ export default function ProductByIdPage() {
       </div>
     );
   }
-emitAssistantMessage(getCartCenterMessage(product.title) as any);
+// emitAssistantMessage(getCartCenterMessage(product.title) as any);
 
   const addToCart = () => {
     addItem({
