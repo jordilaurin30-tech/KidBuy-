@@ -50,8 +50,7 @@ const [query, setQuery] = useState("");
 const cat: CategoryKey =
   normalizedCategory in CATEGORY_THEMES ? normalizedCategory : "elektronik";
 
-
-  const theme = CATEGORY_THEMES[cat];
+  const theme = CATEGORY_THEMES[cat as keyof typeof CATEGORY_THEMES];
 
   // ✅ Produkte filtern
   const list = useMemo(() => PRODUCTS.filter((p) => p.category === cat), [cat]);
