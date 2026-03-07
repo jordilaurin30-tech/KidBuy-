@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EmojiCompanion } from "../../components/login/EmojiCompanion"; // ✅ (A entfernt)
@@ -223,16 +225,19 @@ if (!ALLOW_AUTO_SIGNUP) {
       }
 
       // Nach Signup nochmal einloggen (bei manchen Setups nötig)
-      const signIn2 = await supabaseBrowser.auth.signInWithPassword({ email, password });
-      if (signIn2.error || !signIn2.data?.user)try {
+    const signIn2 = await supabaseBrowser.auth.signInWithPassword({ email, password });
+
+try {
   localStorage.setItem("kidbuy_user_name", (name || "").trim());
   localStorage.setItem("kidbuy_user_role", roleAfterLogin);
-} catch {}  {
-        setError("Bitte E-Mail bestätigen oder erneut versuchen.");
-        setLoading(false);
-        triggerAngry();
-        return false;
-      }
+} catch {}
+
+if (signIn2.error || !signIn2.data?.user) {
+  setError("Bitte E-Mail bestätigen oder erneut versuchen.");
+  setLoading(false);
+  triggerAngry();
+  return false;
+}
 
       const okEnsure = await ensureProfileAndWallet(roleAfterLogin);
       setLoading(false);
