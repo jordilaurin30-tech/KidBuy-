@@ -925,10 +925,4 @@ function DobBox({
     </div>
   );
 }
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div style={{ padding: 24 }}>Lade Login…</div>}>
-      <LoginPageInner />
-    </Suspense>
-  );
-}
+
